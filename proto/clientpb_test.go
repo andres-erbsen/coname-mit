@@ -37,6 +37,8 @@ It has these top-level messages:
 	Duration
 	ReplicaConfig
 	KeyserverConfig
+	EmailProofByDKIM
+	EmailProofByClientCert
 	Replica
 	ReplicaState
 	KeyserverStep

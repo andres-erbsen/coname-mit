@@ -37,6 +37,8 @@
 		Duration
 		ReplicaConfig
 		KeyserverConfig
+		EmailProofByDKIM
+		EmailProofByClientCert
 		Replica
 		ReplicaState
 		KeyserverStep

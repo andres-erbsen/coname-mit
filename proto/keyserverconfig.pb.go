@@ -10,13 +10,12 @@ import math "math"
 
 // discarding unused import gogoproto "gogoproto"
 
-import strconv "strconv"
-
 import bytes "bytes"
 
 import strings "strings"
 import github_com_andres_erbsen_protobuf_proto "github.com/andres-erbsen/protobuf/proto"
 import sort "sort"
+import strconv "strconv"
 import reflect "reflect"
 
 import io "io"
@@ -25,28 +24,6 @@ import io "io"
 var _ = proto1.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
-
-type KeyserverConfig_RegistrationPolicy int32
-
-const (
-	DISABLED           KeyserverConfig_RegistrationPolicy = 0
-	INSECURE_ALLOW_ALL KeyserverConfig_RegistrationPolicy = 1
-	DKIM               KeyserverConfig_RegistrationPolicy = 2
-	CLIENTCERT         KeyserverConfig_RegistrationPolicy = 3
-)
-
-var KeyserverConfig_RegistrationPolicy_name = map[int32]string{
-	0: "DISABLED",
-	1: "INSECURE_ALLOW_ALL",
-	2: "DKIM",
-	3: "CLIENTCERT",
-}
-var KeyserverConfig_RegistrationPolicy_value = map[string]int32{
-	"DISABLED":           0,
-	"INSECURE_ALLOW_ALL": 1,
-	"DKIM":               2,
-	"CLIENTCERT":         3,
-}
 
 // ReplicaConfig contains the local configuration of a single replica of a
 // keyserver. It is valid to have just one replica, but a larger odd number is
@@ -179,32 +156,60 @@ type KeyserverConfig struct {
 	// all replicas. Use AddReplica and RemoveReplica to change the current
 	// cluster configuration.
 	InitialReplicas []*Replica `protobuf:"bytes,7,rep,name=initial_replicas" json:"initial_replicas,omitempty"`
-	// EmailProofToAddr specifies the additional allowed to address in email
-	// proofs. By default, only proofs sent to the user being registered all
-	// accepted. This option can be used to allow proofs emailed directly to
-	// the keyserver to be accepted (but the keyserver does NOT implement a
-	// SMTP interface right now).
+	// EmailProofToAddr (DEPRECATED) specifies the additional allowed to
+	// address in email proofs. By default, only proofs sent to the user being
+	// registered all accepted. This option can be used to allow proofs emailed
+	// directly to the keyserver to be accepted (but the keyserver does NOT
+	// implement a SMTP interface right now).
 	EmailProofToAddr string `protobuf:"bytes,8,opt,name=email_proof_to_addr,proto3" json:"email_proof_to_addr,omitempty"`
-	// EmailProofSubjectPrefix is used for DKIM-based email address
-	// registration.  The proof challenge is sent in the subject line, with an
-	// optional string preceding it. For example, if EmailProofSubjectPrefix =
-	// "account verification: ", then the proof email needs to have a subject
-	// line "account verification: abcd" for verify challenge abcd.
+	// EmailProofSubjectPrefix (DEPRECATED) is used for DKIM-based email
+	// address registration.  The proof challenge is sent in the subject line,
+	// with an optional string preceding it. For example, if
+	// EmailProofSubjectPrefix = "account verification: ", then the proof email
+	// needs to have a subject line "account verification: abcd" for verify
+	// challenge abcd.
 	EmailProofSubjectPrefix string `protobuf:"bytes,9,opt,name=email_proof_subject_prefix,proto3" json:"email_proof_subject_prefix,omitempty"`
-	// EmailProofAllowedDomains specifies the domains for which this keyserver
-	// accepts email address registrations.
-	EmailProofAllowedDomains []string                           `protobuf:"bytes,10,rep,name=email_proof_allowed_domains" json:"email_proof_allowed_domains,omitempty"`
-	InsecureSkipEmailProof   bool                               `protobuf:"varint,11,opt,name=insecure_skip_email_proof,proto3" json:"insecure_skip_email_proof,omitempty"`
-	RegistrationVerification KeyserverConfig_RegistrationPolicy `protobuf:"varint,12,opt,name=RegistrationVerification,proto3,enum=proto.KeyserverConfig_RegistrationPolicy" json:"RegistrationVerification,omitempty"`
-	// Given a certificate signed by an authority trusted with handling
-	// registration, the emailAddress value in the certificate's
-	// DistinguishedName field is allowed to be regeistered by the holder
-	// of the key specified in the certificate.
-	EmailAddressCert_CA []byte `protobuf:"bytes,13,opt,name=emailAddress_cert_CA,proto3" json:"emailAddress_cert_CA,omitempty"`
+	// EmailProofAllowedDomains (DEPRECATED) specifies the domains for which
+	// this keyserver accepts email address registrations.
+	EmailProofAllowedDomains []string `protobuf:"bytes,10,rep,name=email_proof_allowed_domains" json:"email_proof_allowed_domains,omitempty"`
+	// Types that are valid to be assigned to RegistrationPolicy:
+	//	*KeyserverConfig_InsecureSkipEmailProof
+	//	*KeyserverConfig_EmailProofByDkim
+	//	*KeyserverConfig_EmailProofByClientCert
+	RegistrationPolicy isKeyserverConfig_RegistrationPolicy `protobuf_oneof:"registration_policy"`
 }
 
 func (m *KeyserverConfig) Reset()      { *m = KeyserverConfig{} }
 func (*KeyserverConfig) ProtoMessage() {}
+
+type isKeyserverConfig_RegistrationPolicy interface {
+	isKeyserverConfig_RegistrationPolicy()
+	Equal(interface{}) bool
+	VerboseEqual(interface{}) error
+	MarshalTo([]byte) (int, error)
+	Size() int
+}
+
+type KeyserverConfig_InsecureSkipEmailProof struct {
+	InsecureSkipEmailProof bool `protobuf:"varint,11,opt,name=insecure_skip_email_proof,proto3,oneof"`
+}
+type KeyserverConfig_EmailProofByDkim struct {
+	EmailProofByDkim *EmailProofByDKIM `protobuf:"bytes,12,opt,name=email_proof_by_dkim,oneof"`
+}
+type KeyserverConfig_EmailProofByClientCert struct {
+	EmailProofByClientCert *EmailProofByClientCert `protobuf:"bytes,13,opt,name=email_proof_by_client_cert,oneof"`
+}
+
+func (*KeyserverConfig_InsecureSkipEmailProof) isKeyserverConfig_RegistrationPolicy() {}
+func (*KeyserverConfig_EmailProofByDkim) isKeyserverConfig_RegistrationPolicy()       {}
+func (*KeyserverConfig_EmailProofByClientCert) isKeyserverConfig_RegistrationPolicy() {}
+
+func (m *KeyserverConfig) GetRegistrationPolicy() isKeyserverConfig_RegistrationPolicy {
+	if m != nil {
+		return m.RegistrationPolicy
+	}
+	return nil
+}
 
 func (m *KeyserverConfig) GetMinEpochInterval() Duration {
 	if m != nil {
@@ -234,6 +239,132 @@ func (m *KeyserverConfig) GetInitialReplicas() []*Replica {
 	return nil
 }
 
+func (m *KeyserverConfig) GetInsecureSkipEmailProof() bool {
+	if x, ok := m.GetRegistrationPolicy().(*KeyserverConfig_InsecureSkipEmailProof); ok {
+		return x.InsecureSkipEmailProof
+	}
+	return false
+}
+
+func (m *KeyserverConfig) GetEmailProofByDkim() *EmailProofByDKIM {
+	if x, ok := m.GetRegistrationPolicy().(*KeyserverConfig_EmailProofByDkim); ok {
+		return x.EmailProofByDkim
+	}
+	return nil
+}
+
+func (m *KeyserverConfig) GetEmailProofByClientCert() *EmailProofByClientCert {
+	if x, ok := m.GetRegistrationPolicy().(*KeyserverConfig_EmailProofByClientCert); ok {
+		return x.EmailProofByClientCert
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*KeyserverConfig) XXX_OneofFuncs() (func(msg proto1.Message, b *proto1.Buffer) error, func(msg proto1.Message, tag, wire int, b *proto1.Buffer) (bool, error), []interface{}) {
+	return _KeyserverConfig_OneofMarshaler, _KeyserverConfig_OneofUnmarshaler, []interface{}{
+		(*KeyserverConfig_InsecureSkipEmailProof)(nil),
+		(*KeyserverConfig_EmailProofByDkim)(nil),
+		(*KeyserverConfig_EmailProofByClientCert)(nil),
+	}
+}
+
+func _KeyserverConfig_OneofMarshaler(msg proto1.Message, b *proto1.Buffer) error {
+	m := msg.(*KeyserverConfig)
+	// registration_policy
+	switch x := m.RegistrationPolicy.(type) {
+	case *KeyserverConfig_InsecureSkipEmailProof:
+		t := uint64(0)
+		if x.InsecureSkipEmailProof {
+			t = 1
+		}
+		_ = b.EncodeVarint(11<<3 | proto1.WireVarint)
+		_ = b.EncodeVarint(t)
+	case *KeyserverConfig_EmailProofByDkim:
+		_ = b.EncodeVarint(12<<3 | proto1.WireBytes)
+		if err := b.EncodeMessage(x.EmailProofByDkim); err != nil {
+			return err
+		}
+	case *KeyserverConfig_EmailProofByClientCert:
+		_ = b.EncodeVarint(13<<3 | proto1.WireBytes)
+		if err := b.EncodeMessage(x.EmailProofByClientCert); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("KeyserverConfig.RegistrationPolicy has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _KeyserverConfig_OneofUnmarshaler(msg proto1.Message, tag, wire int, b *proto1.Buffer) (bool, error) {
+	m := msg.(*KeyserverConfig)
+	switch tag {
+	case 11: // registration_policy.insecure_skip_email_proof
+		if wire != proto1.WireVarint {
+			return true, proto1.ErrInternalBadWireType
+		}
+		x, err := b.DecodeVarint()
+		m.RegistrationPolicy = &KeyserverConfig_InsecureSkipEmailProof{x != 0}
+		return true, err
+	case 12: // registration_policy.email_proof_by_dkim
+		if wire != proto1.WireBytes {
+			return true, proto1.ErrInternalBadWireType
+		}
+		msg := new(EmailProofByDKIM)
+		err := b.DecodeMessage(msg)
+		m.RegistrationPolicy = &KeyserverConfig_EmailProofByDkim{msg}
+		return true, err
+	case 13: // registration_policy.email_proof_by_client_cert
+		if wire != proto1.WireBytes {
+			return true, proto1.ErrInternalBadWireType
+		}
+		msg := new(EmailProofByClientCert)
+		err := b.DecodeMessage(msg)
+		m.RegistrationPolicy = &KeyserverConfig_EmailProofByClientCert{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+type EmailProofByDKIM struct {
+	// AllowedDomains specifies the domains for which this keyserver accepts
+	// email address registrations.
+	AllowedDomains []string `protobuf:"bytes,1,rep,name=allowed_domains" json:"allowed_domains,omitempty"`
+	// ToAddr specifies the additional allowed to address in email proofs. By
+	// default, only proofs sent to the user being registered all accepted.
+	// This option can be used to allow proofs emailed directly to the
+	// keyserver to be accepted (but the keyserver does NOT implement a SMTP
+	// interface right now).
+	ToAddr string `protobuf:"bytes,2,opt,name=to_addr,proto3" json:"to_addr,omitempty"`
+	// SubjectPrefix is used for DKIM-based email address registration.  The
+	// proof challenge is sent in the subject line, with an optional string
+	// preceding it. For example, if EmailProofSubjectPrefix = "account
+	// verification: ", then the proof email needs to have a subject line
+	// "account verification: abcd" for verify challenge abcd.
+	SubjectPrefix string `protobuf:"bytes,3,opt,name=subject_prefix,proto3" json:"subject_prefix,omitempty"`
+}
+
+func (m *EmailProofByDKIM) Reset()      { *m = EmailProofByDKIM{} }
+func (*EmailProofByDKIM) ProtoMessage() {}
+
+// EmailProofByClientCert accepts a certificate signed by an authority trusted
+// with handling registration as sufficient confirmation of ownership of an
+// email address. The emailAddress value in the certificate's DistinguishedName
+// field is allowed to be regeistered by the holder of the key specified in the
+// certificate.
+type EmailProofByClientCert struct {
+	// AllowedDomains specifies the domains for which this keyserver accepts
+	// email address registrations.
+	AllowedDomains []string `protobuf:"bytes,1,rep,name=allowed_domains" json:"allowed_domains,omitempty"`
+	// CaCert contains the trusted certificate authority certificate in DER format.
+	CaCert []byte `protobuf:"bytes,2,opt,name=ca_cert,proto3" json:"ca_cert,omitempty"`
+}
+
+func (m *EmailProofByClientCert) Reset()      { *m = EmailProofByClientCert{} }
+func (*EmailProofByClientCert) ProtoMessage() {}
+
 type Replica struct {
 	// Id is used to distinguish between nodes during consistent replication.
 	// All node ID-s MUST be unique, MUST NOT be reused (e.g., using IP-s or
@@ -259,16 +390,6 @@ func (m *Replica) GetPublicKeys() []*PublicKey {
 	return nil
 }
 
-func init() {
-	proto1.RegisterEnum("proto.KeyserverConfig_RegistrationPolicy", KeyserverConfig_RegistrationPolicy_name, KeyserverConfig_RegistrationPolicy_value)
-}
-func (x KeyserverConfig_RegistrationPolicy) String() string {
-	s, ok := KeyserverConfig_RegistrationPolicy_name[int32(x)]
-	if ok {
-		return s
-	}
-	return strconv.Itoa(int(x))
-}
 func (this *ReplicaConfig) VerboseEqual(that interface{}) error {
 	if that == nil {
 		if this == nil {
@@ -463,14 +584,89 @@ func (this *KeyserverConfig) VerboseEqual(that interface{}) error {
 			return fmt.Errorf("EmailProofAllowedDomains this[%v](%v) Not Equal that[%v](%v)", i, this.EmailProofAllowedDomains[i], i, that1.EmailProofAllowedDomains[i])
 		}
 	}
+	if that1.RegistrationPolicy == nil {
+		if this.RegistrationPolicy != nil {
+			return fmt.Errorf("this.RegistrationPolicy != nil && that1.RegistrationPolicy == nil")
+		}
+	} else if this.RegistrationPolicy == nil {
+		return fmt.Errorf("this.RegistrationPolicy == nil && that1.RegistrationPolicy != nil")
+	} else if err := this.RegistrationPolicy.VerboseEqual(that1.RegistrationPolicy); err != nil {
+		return err
+	}
+	return nil
+}
+func (this *KeyserverConfig_InsecureSkipEmailProof) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*KeyserverConfig_InsecureSkipEmailProof)
+	if !ok {
+		return fmt.Errorf("that is not of type *KeyserverConfig_InsecureSkipEmailProof")
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *KeyserverConfig_InsecureSkipEmailProof but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *KeyserverConfig_InsecureSkipEmailProofbut is not nil && this == nil")
+	}
 	if this.InsecureSkipEmailProof != that1.InsecureSkipEmailProof {
 		return fmt.Errorf("InsecureSkipEmailProof this(%v) Not Equal that(%v)", this.InsecureSkipEmailProof, that1.InsecureSkipEmailProof)
 	}
-	if this.RegistrationVerification != that1.RegistrationVerification {
-		return fmt.Errorf("RegistrationVerification this(%v) Not Equal that(%v)", this.RegistrationVerification, that1.RegistrationVerification)
+	return nil
+}
+func (this *KeyserverConfig_EmailProofByDkim) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
 	}
-	if !bytes.Equal(this.EmailAddressCert_CA, that1.EmailAddressCert_CA) {
-		return fmt.Errorf("EmailAddressCert_CA this(%v) Not Equal that(%v)", this.EmailAddressCert_CA, that1.EmailAddressCert_CA)
+
+	that1, ok := that.(*KeyserverConfig_EmailProofByDkim)
+	if !ok {
+		return fmt.Errorf("that is not of type *KeyserverConfig_EmailProofByDkim")
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *KeyserverConfig_EmailProofByDkim but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *KeyserverConfig_EmailProofByDkimbut is not nil && this == nil")
+	}
+	if !this.EmailProofByDkim.Equal(that1.EmailProofByDkim) {
+		return fmt.Errorf("EmailProofByDkim this(%v) Not Equal that(%v)", this.EmailProofByDkim, that1.EmailProofByDkim)
+	}
+	return nil
+}
+func (this *KeyserverConfig_EmailProofByClientCert) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*KeyserverConfig_EmailProofByClientCert)
+	if !ok {
+		return fmt.Errorf("that is not of type *KeyserverConfig_EmailProofByClientCert")
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *KeyserverConfig_EmailProofByClientCert but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *KeyserverConfig_EmailProofByClientCertbut is not nil && this == nil")
+	}
+	if !this.EmailProofByClientCert.Equal(that1.EmailProofByClientCert) {
+		return fmt.Errorf("EmailProofByClientCert this(%v) Not Equal that(%v)", this.EmailProofByClientCert, that1.EmailProofByClientCert)
 	}
 	return nil
 }
@@ -534,13 +730,226 @@ func (this *KeyserverConfig) Equal(that interface{}) bool {
 			return false
 		}
 	}
+	if that1.RegistrationPolicy == nil {
+		if this.RegistrationPolicy != nil {
+			return false
+		}
+	} else if this.RegistrationPolicy == nil {
+		return false
+	} else if !this.RegistrationPolicy.Equal(that1.RegistrationPolicy) {
+		return false
+	}
+	return true
+}
+func (this *KeyserverConfig_InsecureSkipEmailProof) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*KeyserverConfig_InsecureSkipEmailProof)
+	if !ok {
+		return false
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
 	if this.InsecureSkipEmailProof != that1.InsecureSkipEmailProof {
 		return false
 	}
-	if this.RegistrationVerification != that1.RegistrationVerification {
+	return true
+}
+func (this *KeyserverConfig_EmailProofByDkim) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
 		return false
 	}
-	if !bytes.Equal(this.EmailAddressCert_CA, that1.EmailAddressCert_CA) {
+
+	that1, ok := that.(*KeyserverConfig_EmailProofByDkim)
+	if !ok {
+		return false
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if !this.EmailProofByDkim.Equal(that1.EmailProofByDkim) {
+		return false
+	}
+	return true
+}
+func (this *KeyserverConfig_EmailProofByClientCert) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*KeyserverConfig_EmailProofByClientCert)
+	if !ok {
+		return false
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if !this.EmailProofByClientCert.Equal(that1.EmailProofByClientCert) {
+		return false
+	}
+	return true
+}
+func (this *EmailProofByDKIM) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*EmailProofByDKIM)
+	if !ok {
+		return fmt.Errorf("that is not of type *EmailProofByDKIM")
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *EmailProofByDKIM but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *EmailProofByDKIMbut is not nil && this == nil")
+	}
+	if len(this.AllowedDomains) != len(that1.AllowedDomains) {
+		return fmt.Errorf("AllowedDomains this(%v) Not Equal that(%v)", len(this.AllowedDomains), len(that1.AllowedDomains))
+	}
+	for i := range this.AllowedDomains {
+		if this.AllowedDomains[i] != that1.AllowedDomains[i] {
+			return fmt.Errorf("AllowedDomains this[%v](%v) Not Equal that[%v](%v)", i, this.AllowedDomains[i], i, that1.AllowedDomains[i])
+		}
+	}
+	if this.ToAddr != that1.ToAddr {
+		return fmt.Errorf("ToAddr this(%v) Not Equal that(%v)", this.ToAddr, that1.ToAddr)
+	}
+	if this.SubjectPrefix != that1.SubjectPrefix {
+		return fmt.Errorf("SubjectPrefix this(%v) Not Equal that(%v)", this.SubjectPrefix, that1.SubjectPrefix)
+	}
+	return nil
+}
+func (this *EmailProofByDKIM) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*EmailProofByDKIM)
+	if !ok {
+		return false
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if len(this.AllowedDomains) != len(that1.AllowedDomains) {
+		return false
+	}
+	for i := range this.AllowedDomains {
+		if this.AllowedDomains[i] != that1.AllowedDomains[i] {
+			return false
+		}
+	}
+	if this.ToAddr != that1.ToAddr {
+		return false
+	}
+	if this.SubjectPrefix != that1.SubjectPrefix {
+		return false
+	}
+	return true
+}
+func (this *EmailProofByClientCert) VerboseEqual(that interface{}) error {
+	if that == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that == nil && this != nil")
+	}
+
+	that1, ok := that.(*EmailProofByClientCert)
+	if !ok {
+		return fmt.Errorf("that is not of type *EmailProofByClientCert")
+	}
+	if that1 == nil {
+		if this == nil {
+			return nil
+		}
+		return fmt.Errorf("that is type *EmailProofByClientCert but is nil && this != nil")
+	} else if this == nil {
+		return fmt.Errorf("that is type *EmailProofByClientCertbut is not nil && this == nil")
+	}
+	if len(this.AllowedDomains) != len(that1.AllowedDomains) {
+		return fmt.Errorf("AllowedDomains this(%v) Not Equal that(%v)", len(this.AllowedDomains), len(that1.AllowedDomains))
+	}
+	for i := range this.AllowedDomains {
+		if this.AllowedDomains[i] != that1.AllowedDomains[i] {
+			return fmt.Errorf("AllowedDomains this[%v](%v) Not Equal that[%v](%v)", i, this.AllowedDomains[i], i, that1.AllowedDomains[i])
+		}
+	}
+	if !bytes.Equal(this.CaCert, that1.CaCert) {
+		return fmt.Errorf("CaCert this(%v) Not Equal that(%v)", this.CaCert, that1.CaCert)
+	}
+	return nil
+}
+func (this *EmailProofByClientCert) Equal(that interface{}) bool {
+	if that == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	}
+
+	that1, ok := that.(*EmailProofByClientCert)
+	if !ok {
+		return false
+	}
+	if that1 == nil {
+		if this == nil {
+			return true
+		}
+		return false
+	} else if this == nil {
+		return false
+	}
+	if len(this.AllowedDomains) != len(that1.AllowedDomains) {
+		return false
+	}
+	for i := range this.AllowedDomains {
+		if this.AllowedDomains[i] != that1.AllowedDomains[i] {
+			return false
+		}
+	}
+	if !bytes.Equal(this.CaCert, that1.CaCert) {
 		return false
 	}
 	return true
@@ -659,9 +1068,56 @@ func (this *KeyserverConfig) GoString() string {
 	s = append(s, "EmailProofToAddr: "+fmt.Sprintf("%#v", this.EmailProofToAddr)+",\n")
 	s = append(s, "EmailProofSubjectPrefix: "+fmt.Sprintf("%#v", this.EmailProofSubjectPrefix)+",\n")
 	s = append(s, "EmailProofAllowedDomains: "+fmt.Sprintf("%#v", this.EmailProofAllowedDomains)+",\n")
-	s = append(s, "InsecureSkipEmailProof: "+fmt.Sprintf("%#v", this.InsecureSkipEmailProof)+",\n")
-	s = append(s, "RegistrationVerification: "+fmt.Sprintf("%#v", this.RegistrationVerification)+",\n")
-	s = append(s, "EmailAddressCert_CA: "+fmt.Sprintf("%#v", this.EmailAddressCert_CA)+",\n")
+	if this.RegistrationPolicy != nil {
+		s = append(s, "RegistrationPolicy: "+fmt.Sprintf("%#v", this.RegistrationPolicy)+",\n")
+	}
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *KeyserverConfig_InsecureSkipEmailProof) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&proto.KeyserverConfig_InsecureSkipEmailProof{` +
+		`InsecureSkipEmailProof:` + fmt.Sprintf("%#v", this.InsecureSkipEmailProof) + `}`}, ", ")
+	return s
+}
+func (this *KeyserverConfig_EmailProofByDkim) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&proto.KeyserverConfig_EmailProofByDkim{` +
+		`EmailProofByDkim:` + fmt.Sprintf("%#v", this.EmailProofByDkim) + `}`}, ", ")
+	return s
+}
+func (this *KeyserverConfig_EmailProofByClientCert) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&proto.KeyserverConfig_EmailProofByClientCert{` +
+		`EmailProofByClientCert:` + fmt.Sprintf("%#v", this.EmailProofByClientCert) + `}`}, ", ")
+	return s
+}
+func (this *EmailProofByDKIM) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 7)
+	s = append(s, "&proto.EmailProofByDKIM{")
+	s = append(s, "AllowedDomains: "+fmt.Sprintf("%#v", this.AllowedDomains)+",\n")
+	s = append(s, "ToAddr: "+fmt.Sprintf("%#v", this.ToAddr)+",\n")
+	s = append(s, "SubjectPrefix: "+fmt.Sprintf("%#v", this.SubjectPrefix)+",\n")
+	s = append(s, "}")
+	return strings.Join(s, "")
+}
+func (this *EmailProofByClientCert) GoString() string {
+	if this == nil {
+		return "nil"
+	}
+	s := make([]string, 0, 6)
+	s = append(s, "&proto.EmailProofByClientCert{")
+	s = append(s, "AllowedDomains: "+fmt.Sprintf("%#v", this.AllowedDomains)+",\n")
+	s = append(s, "CaCert: "+fmt.Sprintf("%#v", this.CaCert)+",\n")
 	s = append(s, "}")
 	return strings.Join(s, "")
 }
@@ -923,27 +1379,137 @@ func (m *KeyserverConfig) MarshalTo(data []byte) (int, error) {
 			i += copy(data[i:], s)
 		}
 	}
-	if m.InsecureSkipEmailProof {
-		data[i] = 0x58
-		i++
-		if m.InsecureSkipEmailProof {
-			data[i] = 1
-		} else {
-			data[i] = 0
+	if m.RegistrationPolicy != nil {
+		nn11, err := m.RegistrationPolicy.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
 		}
-		i++
+		i += nn11
 	}
-	if m.RegistrationVerification != 0 {
-		data[i] = 0x60
-		i++
-		i = encodeVarintKeyserverconfig(data, i, uint64(m.RegistrationVerification))
+	return i, nil
+}
+
+func (m *KeyserverConfig_InsecureSkipEmailProof) MarshalTo(data []byte) (int, error) {
+	i := 0
+	data[i] = 0x58
+	i++
+	if m.InsecureSkipEmailProof {
+		data[i] = 1
+	} else {
+		data[i] = 0
 	}
-	if m.EmailAddressCert_CA != nil {
-		if len(m.EmailAddressCert_CA) > 0 {
-			data[i] = 0x6a
+	i++
+	return i, nil
+}
+func (m *KeyserverConfig_EmailProofByDkim) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.EmailProofByDkim != nil {
+		data[i] = 0x62
+		i++
+		i = encodeVarintKeyserverconfig(data, i, uint64(m.EmailProofByDkim.Size()))
+		n12, err := m.EmailProofByDkim.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n12
+	}
+	return i, nil
+}
+func (m *KeyserverConfig_EmailProofByClientCert) MarshalTo(data []byte) (int, error) {
+	i := 0
+	if m.EmailProofByClientCert != nil {
+		data[i] = 0x6a
+		i++
+		i = encodeVarintKeyserverconfig(data, i, uint64(m.EmailProofByClientCert.Size()))
+		n13, err := m.EmailProofByClientCert.MarshalTo(data[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n13
+	}
+	return i, nil
+}
+func (m *EmailProofByDKIM) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *EmailProofByDKIM) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.AllowedDomains) > 0 {
+		for _, s := range m.AllowedDomains {
+			data[i] = 0xa
 			i++
-			i = encodeVarintKeyserverconfig(data, i, uint64(len(m.EmailAddressCert_CA)))
-			i += copy(data[i:], m.EmailAddressCert_CA)
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	if len(m.ToAddr) > 0 {
+		data[i] = 0x12
+		i++
+		i = encodeVarintKeyserverconfig(data, i, uint64(len(m.ToAddr)))
+		i += copy(data[i:], m.ToAddr)
+	}
+	if len(m.SubjectPrefix) > 0 {
+		data[i] = 0x1a
+		i++
+		i = encodeVarintKeyserverconfig(data, i, uint64(len(m.SubjectPrefix)))
+		i += copy(data[i:], m.SubjectPrefix)
+	}
+	return i, nil
+}
+
+func (m *EmailProofByClientCert) Marshal() (data []byte, err error) {
+	size := m.Size()
+	data = make([]byte, size)
+	n, err := m.MarshalTo(data)
+	if err != nil {
+		return nil, err
+	}
+	return data[:n], nil
+}
+
+func (m *EmailProofByClientCert) MarshalTo(data []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.AllowedDomains) > 0 {
+		for _, s := range m.AllowedDomains {
+			data[i] = 0xa
+			i++
+			l = len(s)
+			for l >= 1<<7 {
+				data[i] = uint8(uint64(l)&0x7f | 0x80)
+				l >>= 7
+				i++
+			}
+			data[i] = uint8(l)
+			i++
+			i += copy(data[i:], s)
+		}
+	}
+	if m.CaCert != nil {
+		if len(m.CaCert) > 0 {
+			data[i] = 0x12
+			i++
+			i = encodeVarintKeyserverconfig(data, i, uint64(len(m.CaCert)))
+			i += copy(data[i:], m.CaCert)
 		}
 	}
 	return i, nil
@@ -1071,12 +1637,60 @@ func NewPopulatedKeyserverConfig(r randyKeyserverconfig, easy bool) *KeyserverCo
 	for i := 0; i < v12; i++ {
 		this.EmailProofAllowedDomains[i] = randStringKeyserverconfig(r)
 	}
+	oneofNumber_RegistrationPolicy := []int32{11, 12, 13}[r.Intn(3)]
+	switch oneofNumber_RegistrationPolicy {
+	case 11:
+		this.RegistrationPolicy = NewPopulatedKeyserverConfig_InsecureSkipEmailProof(r, easy)
+	case 12:
+		this.RegistrationPolicy = NewPopulatedKeyserverConfig_EmailProofByDkim(r, easy)
+	case 13:
+		this.RegistrationPolicy = NewPopulatedKeyserverConfig_EmailProofByClientCert(r, easy)
+	}
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedKeyserverConfig_InsecureSkipEmailProof(r randyKeyserverconfig, easy bool) *KeyserverConfig_InsecureSkipEmailProof {
+	this := &KeyserverConfig_InsecureSkipEmailProof{}
 	this.InsecureSkipEmailProof = bool(bool(r.Intn(2) == 0))
-	this.RegistrationVerification = KeyserverConfig_RegistrationPolicy([]int32{0, 1, 2, 3}[r.Intn(4)])
-	v13 := r.Intn(100)
-	this.EmailAddressCert_CA = make([]byte, v13)
+	return this
+}
+func NewPopulatedKeyserverConfig_EmailProofByDkim(r randyKeyserverconfig, easy bool) *KeyserverConfig_EmailProofByDkim {
+	this := &KeyserverConfig_EmailProofByDkim{}
+	this.EmailProofByDkim = NewPopulatedEmailProofByDKIM(r, easy)
+	return this
+}
+func NewPopulatedKeyserverConfig_EmailProofByClientCert(r randyKeyserverconfig, easy bool) *KeyserverConfig_EmailProofByClientCert {
+	this := &KeyserverConfig_EmailProofByClientCert{}
+	this.EmailProofByClientCert = NewPopulatedEmailProofByClientCert(r, easy)
+	return this
+}
+func NewPopulatedEmailProofByDKIM(r randyKeyserverconfig, easy bool) *EmailProofByDKIM {
+	this := &EmailProofByDKIM{}
+	v13 := r.Intn(10)
+	this.AllowedDomains = make([]string, v13)
 	for i := 0; i < v13; i++ {
-		this.EmailAddressCert_CA[i] = byte(r.Intn(256))
+		this.AllowedDomains[i] = randStringKeyserverconfig(r)
+	}
+	this.ToAddr = randStringKeyserverconfig(r)
+	this.SubjectPrefix = randStringKeyserverconfig(r)
+	if !easy && r.Intn(10) != 0 {
+	}
+	return this
+}
+
+func NewPopulatedEmailProofByClientCert(r randyKeyserverconfig, easy bool) *EmailProofByClientCert {
+	this := &EmailProofByClientCert{}
+	v14 := r.Intn(10)
+	this.AllowedDomains = make([]string, v14)
+	for i := 0; i < v14; i++ {
+		this.AllowedDomains[i] = randStringKeyserverconfig(r)
+	}
+	v15 := r.Intn(100)
+	this.CaCert = make([]byte, v15)
+	for i := 0; i < v15; i++ {
+		this.CaCert[i] = byte(r.Intn(256))
 	}
 	if !easy && r.Intn(10) != 0 {
 	}
@@ -1087,9 +1701,9 @@ func NewPopulatedReplica(r randyKeyserverconfig, easy bool) *Replica {
 	this := &Replica{}
 	this.ID = uint64(uint64(r.Uint32()))
 	if r.Intn(10) != 0 {
-		v14 := r.Intn(10)
-		this.PublicKeys = make([]*PublicKey, v14)
-		for i := 0; i < v14; i++ {
+		v16 := r.Intn(10)
+		this.PublicKeys = make([]*PublicKey, v16)
+		for i := 0; i < v16; i++ {
 			this.PublicKeys[i] = NewPopulatedPublicKey(r, easy)
 		}
 	}
@@ -1118,9 +1732,9 @@ func randUTF8RuneKeyserverconfig(r randyKeyserverconfig) rune {
 	return rune(ru + 61)
 }
 func randStringKeyserverconfig(r randyKeyserverconfig) string {
-	v15 := r.Intn(100)
-	tmps := make([]rune, v15)
-	for i := 0; i < v15; i++ {
+	v17 := r.Intn(100)
+	tmps := make([]rune, v17)
+	for i := 0; i < v17; i++ {
 		tmps[i] = randUTF8RuneKeyserverconfig(r)
 	}
 	return string(tmps)
@@ -1142,11 +1756,11 @@ func randFieldKeyserverconfig(data []byte, r randyKeyserverconfig, fieldNumber i
 	switch wire {
 	case 0:
 		data = encodeVarintPopulateKeyserverconfig(data, uint64(key))
-		v16 := r.Int63()
+		v18 := r.Int63()
 		if r.Intn(2) == 0 {
-			v16 *= -1
+			v18 *= -1
 		}
-		data = encodeVarintPopulateKeyserverconfig(data, uint64(v16))
+		data = encodeVarintPopulateKeyserverconfig(data, uint64(v18))
 	case 1:
 		data = encodeVarintPopulateKeyserverconfig(data, uint64(key))
 		data = append(data, byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)), byte(r.Intn(256)))
@@ -1261,14 +1875,67 @@ func (m *KeyserverConfig) Size() (n int) {
 			n += 1 + l + sovKeyserverconfig(uint64(l))
 		}
 	}
-	if m.InsecureSkipEmailProof {
-		n += 2
+	if m.RegistrationPolicy != nil {
+		n += m.RegistrationPolicy.Size()
 	}
-	if m.RegistrationVerification != 0 {
-		n += 1 + sovKeyserverconfig(uint64(m.RegistrationVerification))
+	return n
+}
+
+func (m *KeyserverConfig_InsecureSkipEmailProof) Size() (n int) {
+	var l int
+	_ = l
+	n += 2
+	return n
+}
+func (m *KeyserverConfig_EmailProofByDkim) Size() (n int) {
+	var l int
+	_ = l
+	if m.EmailProofByDkim != nil {
+		l = m.EmailProofByDkim.Size()
+		n += 1 + l + sovKeyserverconfig(uint64(l))
 	}
-	if m.EmailAddressCert_CA != nil {
-		l = len(m.EmailAddressCert_CA)
+	return n
+}
+func (m *KeyserverConfig_EmailProofByClientCert) Size() (n int) {
+	var l int
+	_ = l
+	if m.EmailProofByClientCert != nil {
+		l = m.EmailProofByClientCert.Size()
+		n += 1 + l + sovKeyserverconfig(uint64(l))
+	}
+	return n
+}
+func (m *EmailProofByDKIM) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.AllowedDomains) > 0 {
+		for _, s := range m.AllowedDomains {
+			l = len(s)
+			n += 1 + l + sovKeyserverconfig(uint64(l))
+		}
+	}
+	l = len(m.ToAddr)
+	if l > 0 {
+		n += 1 + l + sovKeyserverconfig(uint64(l))
+	}
+	l = len(m.SubjectPrefix)
+	if l > 0 {
+		n += 1 + l + sovKeyserverconfig(uint64(l))
+	}
+	return n
+}
+
+func (m *EmailProofByClientCert) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.AllowedDomains) > 0 {
+		for _, s := range m.AllowedDomains {
+			l = len(s)
+			n += 1 + l + sovKeyserverconfig(uint64(l))
+		}
+	}
+	if m.CaCert != nil {
+		l = len(m.CaCert)
 		if l > 0 {
 			n += 1 + l + sovKeyserverconfig(uint64(l))
 		}
@@ -1347,9 +2014,60 @@ func (this *KeyserverConfig) String() string {
 		`EmailProofToAddr:` + fmt.Sprintf("%v", this.EmailProofToAddr) + `,`,
 		`EmailProofSubjectPrefix:` + fmt.Sprintf("%v", this.EmailProofSubjectPrefix) + `,`,
 		`EmailProofAllowedDomains:` + fmt.Sprintf("%v", this.EmailProofAllowedDomains) + `,`,
+		`RegistrationPolicy:` + fmt.Sprintf("%v", this.RegistrationPolicy) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *KeyserverConfig_InsecureSkipEmailProof) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&KeyserverConfig_InsecureSkipEmailProof{`,
 		`InsecureSkipEmailProof:` + fmt.Sprintf("%v", this.InsecureSkipEmailProof) + `,`,
-		`RegistrationVerification:` + fmt.Sprintf("%v", this.RegistrationVerification) + `,`,
-		`EmailAddressCert_CA:` + fmt.Sprintf("%v", this.EmailAddressCert_CA) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *KeyserverConfig_EmailProofByDkim) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&KeyserverConfig_EmailProofByDkim{`,
+		`EmailProofByDkim:` + strings.Replace(fmt.Sprintf("%v", this.EmailProofByDkim), "EmailProofByDKIM", "EmailProofByDKIM", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *KeyserverConfig_EmailProofByClientCert) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&KeyserverConfig_EmailProofByClientCert{`,
+		`EmailProofByClientCert:` + strings.Replace(fmt.Sprintf("%v", this.EmailProofByClientCert), "EmailProofByClientCert", "EmailProofByClientCert", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *EmailProofByDKIM) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&EmailProofByDKIM{`,
+		`AllowedDomains:` + fmt.Sprintf("%v", this.AllowedDomains) + `,`,
+		`ToAddr:` + fmt.Sprintf("%v", this.ToAddr) + `,`,
+		`SubjectPrefix:` + fmt.Sprintf("%v", this.SubjectPrefix) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *EmailProofByClientCert) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&EmailProofByClientCert{`,
+		`AllowedDomains:` + fmt.Sprintf("%v", this.AllowedDomains) + `,`,
+		`CaCert:` + fmt.Sprintf("%v", this.CaCert) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -2179,12 +2897,13 @@ func (m *KeyserverConfig) Unmarshal(data []byte) error {
 					break
 				}
 			}
-			m.InsecureSkipEmailProof = bool(v != 0)
+			b := bool(v != 0)
+			m.RegistrationPolicy = &KeyserverConfig_InsecureSkipEmailProof{b}
 		case 12:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field RegistrationVerification", wireType)
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EmailProofByDkim", wireType)
 			}
-			m.RegistrationVerification = 0
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflowKeyserverconfig
@@ -2194,14 +2913,275 @@ func (m *KeyserverConfig) Unmarshal(data []byte) error {
 				}
 				b := data[iNdEx]
 				iNdEx++
-				m.RegistrationVerification |= (KeyserverConfig_RegistrationPolicy(b) & 0x7F) << shift
+				msglen |= (int(b) & 0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			if msglen < 0 {
+				return ErrInvalidLengthKeyserverconfig
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EmailProofByDKIM{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.RegistrationPolicy = &KeyserverConfig_EmailProofByDkim{v}
+			iNdEx = postIndex
 		case 13:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EmailAddressCert_CA", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field EmailProofByClientCert", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKeyserverconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthKeyserverconfig
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			v := &EmailProofByClientCert{}
+			if err := v.Unmarshal(data[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			m.RegistrationPolicy = &KeyserverConfig_EmailProofByClientCert{v}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipKeyserverconfig(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthKeyserverconfig
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *EmailProofByDKIM) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowKeyserverconfig
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: EmailProofByDKIM: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: EmailProofByDKIM: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AllowedDomains", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKeyserverconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthKeyserverconfig
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AllowedDomains = append(m.AllowedDomains, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ToAddr", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKeyserverconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthKeyserverconfig
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ToAddr = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SubjectPrefix", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKeyserverconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthKeyserverconfig
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SubjectPrefix = string(data[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipKeyserverconfig(data[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthKeyserverconfig
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *EmailProofByClientCert) Unmarshal(data []byte) error {
+	l := len(data)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowKeyserverconfig
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := data[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: EmailProofByClientCert: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: EmailProofByClientCert: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AllowedDomains", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKeyserverconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthKeyserverconfig
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.AllowedDomains = append(m.AllowedDomains, string(data[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CaCert", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -2225,7 +3205,7 @@ func (m *KeyserverConfig) Unmarshal(data []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.EmailAddressCert_CA = append([]byte{}, data[iNdEx:postIndex]...)
+			m.CaCert = append([]byte{}, data[iNdEx:postIndex]...)
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
