@@ -29,20 +29,20 @@ var _ = math.Inf
 type KeyserverConfig_RegistrationPolicy int32
 
 const (
-	NO_REGISTRATION    KeyserverConfig_RegistrationPolicy = 0
+	DISABLED           KeyserverConfig_RegistrationPolicy = 0
 	INSECURE_ALLOW_ALL KeyserverConfig_RegistrationPolicy = 1
 	DKIM               KeyserverConfig_RegistrationPolicy = 2
 	CLIENTCERT         KeyserverConfig_RegistrationPolicy = 3
 )
 
 var KeyserverConfig_RegistrationPolicy_name = map[int32]string{
-	0: "NO_REGISTRATION",
+	0: "DISABLED",
 	1: "INSECURE_ALLOW_ALL",
 	2: "DKIM",
 	3: "CLIENTCERT",
 }
 var KeyserverConfig_RegistrationPolicy_value = map[string]int32{
-	"NO_REGISTRATION":    0,
+	"DISABLED":           0,
 	"INSECURE_ALLOW_ALL": 1,
 	"DKIM":               2,
 	"CLIENTCERT":         3,
@@ -194,12 +194,13 @@ type KeyserverConfig struct {
 	// EmailProofAllowedDomains specifies the domains for which this keyserver
 	// accepts email address registrations.
 	EmailProofAllowedDomains []string                           `protobuf:"bytes,10,rep,name=email_proof_allowed_domains" json:"email_proof_allowed_domains,omitempty"`
-	RegistrationVerification KeyserverConfig_RegistrationPolicy `protobuf:"varint,11,opt,name=RegistrationVerification,proto3,enum=proto.KeyserverConfig_RegistrationPolicy" json:"RegistrationVerification,omitempty"`
+	InsecureSkipEmailProof   bool                               `protobuf:"varint,11,opt,name=insecure_skip_email_proof,proto3" json:"insecure_skip_email_proof,omitempty"`
+	RegistrationVerification KeyserverConfig_RegistrationPolicy `protobuf:"varint,12,opt,name=RegistrationVerification,proto3,enum=proto.KeyserverConfig_RegistrationPolicy" json:"RegistrationVerification,omitempty"`
 	// Given a certificate signed by an authority trusted with handling
-	// registration, the emailAddress value from the certificate's
+	// registration, the emailAddress value in the certificate's
 	// DistinguishedName field is allowed to be regeistered by the holder
 	// of the key specified in the certificate.
-	EmailAddressCert_CA []byte `protobuf:"bytes,12,opt,name=emailAddress_cert_CA,proto3" json:"emailAddress_cert_CA,omitempty"`
+	EmailAddressCert_CA []byte `protobuf:"bytes,13,opt,name=emailAddress_cert_CA,proto3" json:"emailAddress_cert_CA,omitempty"`
 }
 
 func (m *KeyserverConfig) Reset()      { *m = KeyserverConfig{} }
@@ -462,6 +463,9 @@ func (this *KeyserverConfig) VerboseEqual(that interface{}) error {
 			return fmt.Errorf("EmailProofAllowedDomains this[%v](%v) Not Equal that[%v](%v)", i, this.EmailProofAllowedDomains[i], i, that1.EmailProofAllowedDomains[i])
 		}
 	}
+	if this.InsecureSkipEmailProof != that1.InsecureSkipEmailProof {
+		return fmt.Errorf("InsecureSkipEmailProof this(%v) Not Equal that(%v)", this.InsecureSkipEmailProof, that1.InsecureSkipEmailProof)
+	}
 	if this.RegistrationVerification != that1.RegistrationVerification {
 		return fmt.Errorf("RegistrationVerification this(%v) Not Equal that(%v)", this.RegistrationVerification, that1.RegistrationVerification)
 	}
@@ -529,6 +533,9 @@ func (this *KeyserverConfig) Equal(that interface{}) bool {
 		if this.EmailProofAllowedDomains[i] != that1.EmailProofAllowedDomains[i] {
 			return false
 		}
+	}
+	if this.InsecureSkipEmailProof != that1.InsecureSkipEmailProof {
+		return false
 	}
 	if this.RegistrationVerification != that1.RegistrationVerification {
 		return false
@@ -638,7 +645,7 @@ func (this *KeyserverConfig) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 16)
+	s := make([]string, 0, 17)
 	s = append(s, "&proto.KeyserverConfig{")
 	s = append(s, "ServerID: "+fmt.Sprintf("%#v", this.ServerID)+",\n")
 	s = append(s, "Realm: "+fmt.Sprintf("%#v", this.Realm)+",\n")
@@ -652,6 +659,7 @@ func (this *KeyserverConfig) GoString() string {
 	s = append(s, "EmailProofToAddr: "+fmt.Sprintf("%#v", this.EmailProofToAddr)+",\n")
 	s = append(s, "EmailProofSubjectPrefix: "+fmt.Sprintf("%#v", this.EmailProofSubjectPrefix)+",\n")
 	s = append(s, "EmailProofAllowedDomains: "+fmt.Sprintf("%#v", this.EmailProofAllowedDomains)+",\n")
+	s = append(s, "InsecureSkipEmailProof: "+fmt.Sprintf("%#v", this.InsecureSkipEmailProof)+",\n")
 	s = append(s, "RegistrationVerification: "+fmt.Sprintf("%#v", this.RegistrationVerification)+",\n")
 	s = append(s, "EmailAddressCert_CA: "+fmt.Sprintf("%#v", this.EmailAddressCert_CA)+",\n")
 	s = append(s, "}")
@@ -915,14 +923,24 @@ func (m *KeyserverConfig) MarshalTo(data []byte) (int, error) {
 			i += copy(data[i:], s)
 		}
 	}
-	if m.RegistrationVerification != 0 {
+	if m.InsecureSkipEmailProof {
 		data[i] = 0x58
+		i++
+		if m.InsecureSkipEmailProof {
+			data[i] = 1
+		} else {
+			data[i] = 0
+		}
+		i++
+	}
+	if m.RegistrationVerification != 0 {
+		data[i] = 0x60
 		i++
 		i = encodeVarintKeyserverconfig(data, i, uint64(m.RegistrationVerification))
 	}
 	if m.EmailAddressCert_CA != nil {
 		if len(m.EmailAddressCert_CA) > 0 {
-			data[i] = 0x62
+			data[i] = 0x6a
 			i++
 			i = encodeVarintKeyserverconfig(data, i, uint64(len(m.EmailAddressCert_CA)))
 			i += copy(data[i:], m.EmailAddressCert_CA)
@@ -1053,6 +1071,7 @@ func NewPopulatedKeyserverConfig(r randyKeyserverconfig, easy bool) *KeyserverCo
 	for i := 0; i < v12; i++ {
 		this.EmailProofAllowedDomains[i] = randStringKeyserverconfig(r)
 	}
+	this.InsecureSkipEmailProof = bool(bool(r.Intn(2) == 0))
 	this.RegistrationVerification = KeyserverConfig_RegistrationPolicy([]int32{0, 1, 2, 3}[r.Intn(4)])
 	v13 := r.Intn(100)
 	this.EmailAddressCert_CA = make([]byte, v13)
@@ -1242,6 +1261,9 @@ func (m *KeyserverConfig) Size() (n int) {
 			n += 1 + l + sovKeyserverconfig(uint64(l))
 		}
 	}
+	if m.InsecureSkipEmailProof {
+		n += 2
+	}
 	if m.RegistrationVerification != 0 {
 		n += 1 + sovKeyserverconfig(uint64(m.RegistrationVerification))
 	}
@@ -1325,6 +1347,7 @@ func (this *KeyserverConfig) String() string {
 		`EmailProofToAddr:` + fmt.Sprintf("%v", this.EmailProofToAddr) + `,`,
 		`EmailProofSubjectPrefix:` + fmt.Sprintf("%v", this.EmailProofSubjectPrefix) + `,`,
 		`EmailProofAllowedDomains:` + fmt.Sprintf("%v", this.EmailProofAllowedDomains) + `,`,
+		`InsecureSkipEmailProof:` + fmt.Sprintf("%v", this.InsecureSkipEmailProof) + `,`,
 		`RegistrationVerification:` + fmt.Sprintf("%v", this.RegistrationVerification) + `,`,
 		`EmailAddressCert_CA:` + fmt.Sprintf("%v", this.EmailAddressCert_CA) + `,`,
 		`}`,
@@ -2139,6 +2162,26 @@ func (m *KeyserverConfig) Unmarshal(data []byte) error {
 			iNdEx = postIndex
 		case 11:
 			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InsecureSkipEmailProof", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowKeyserverconfig
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := data[iNdEx]
+				iNdEx++
+				v |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.InsecureSkipEmailProof = bool(v != 0)
+		case 12:
+			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field RegistrationVerification", wireType)
 			}
 			m.RegistrationVerification = 0
@@ -2156,7 +2199,7 @@ func (m *KeyserverConfig) Unmarshal(data []byte) error {
 					break
 				}
 			}
-		case 12:
+		case 13:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field EmailAddressCert_CA", wireType)
 			}

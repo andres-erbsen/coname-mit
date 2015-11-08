@@ -134,7 +134,29 @@ message KeyserverConfig {
 	// accepts email address registrations.
 	repeated string email_proof_allowed_domains = 10;
 
-	bool insecure_skip_email_proof = 11;
+	bool insecure_skip_email_proof = 11; // DEPRECATED
+	// In versions that implement @12, @12 takes precedence over this.  No
+	// new configuration should be deployed with this option set.  This
+	// option will be removed after 2016-02-01 and the related code will be
+	// exterminated. Those currently relying on this option should:
+	// 1) update to a version that supports @12
+	// 2) change the configuration file to specify @12
+	// 3) remove the value of this option from the configuration file
+
+	enum RegistrationPolicy {
+		DISABLED = 0;
+		INSECURE_ALLOW_ALL = 1;
+		DKIM = 2; // uses 8, 9
+		CLIENTCERT = 3; // uses 13
+	}
+
+	RegistrationPolicy RegistrationVerification = 12;
+
+	// Given a certificate signed by an authority trusted with handling
+	// registration, the emailAddress value in the certificate's
+	// DistinguishedName field is allowed to be regeistered by the holder
+	// of the key specified in the certificate.
+	bytes emailAddress_cert_CA = 13; // DER, with CA bit set
 }
 
 message Replica {
