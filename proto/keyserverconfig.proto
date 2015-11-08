@@ -146,8 +146,8 @@ message KeyserverConfig {
 	enum RegistrationPolicy {
 		DISABLED = 0;
 		INSECURE_ALLOW_ALL = 1;
-		DKIM = 2; // uses 8, 9
-		CLIENTCERT = 3; // uses 13
+		DKIM = 2; // uses 11, 8, 9
+		CLIENTCERT = 3; // uses 11, 13
 	}
 
 	RegistrationPolicy RegistrationVerification = 12;
